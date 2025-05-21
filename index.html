@@ -1,0 +1,1732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Fortune Wheel</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <style>
+        /* Completely different color scheme and design */
+        :root {
+            --primary: #6d28d9; /* Purple */
+            --primary-dark: #5b21b6;
+            --secondary: #10b981; /* Green */
+            --secondary-dark: #059669;
+            --accent: #f59e0b; /* Amber */
+            --accent-dark: #d97706;
+            --dark: #1f2937;
+            --light: #f9fafb;
+            --gray: #6b7280;
+            --danger: #ef4444;
+            --success: #10b981;
+            --info: #3b82f6;
+            --warning: #f59e0b;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        body {
+            background-color: var(--dark);
+            color: var(--light);
+            line-height: 1.5;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(109, 40, 217, 0.2) 0%, transparent 20%),
+                radial-gradient(circle at 90% 30%, rgba(16, 185, 129, 0.2) 0%, transparent 20%),
+                radial-gradient(circle at 50% 80%, rgba(245, 158, 11, 0.2) 0%, transparent 20%);
+            background-attachment: fixed;
+        }
+        
+        #app {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 3rem;
+        }
+        
+        .logo {
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: linear-gradient(90deg, var(--secondary) 0%, var(--primary) 50%, var(--accent) 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        
+        .tagline {
+            color: var(--gray);
+            font-size: 1.2rem;
+            text-align: center;
+        }
+        
+        .wheel-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+            margin: 0 auto 3rem;
+        }
+        
+        .fortune-wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(
+                var(--primary) 0% 10%,
+                var(--secondary) 10% 40%,
+                var(--accent) 40% 55%,
+                var(--primary-dark) 55% 70%,
+                var(--secondary-dark) 70% 85%,
+                var(--accent-dark) 85% 100%
+            );
+            box-shadow: 0 0 40px rgba(109, 40, 217, 0.5);
+            transform-origin: center;
+            transition: transform 5s cubic-bezier(0.2, 0.8, 0.2, 1);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .wheel-pointer {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 40px;
+            background-color: var(--light);
+            clip-path: polygon(50% 100%, 0 0, 100% 0);
+            z-index: 10;
+        }
+        
+        .wheel-center {
+            width: 80px;
+            height: 80px;
+            background: var(--dark);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 5;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        .wheel-center-inner {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(-45deg, var(--primary), var(--secondary));
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+        
+        .card {
+            background-color: rgba(31, 41, 55, 0.7);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .card-title {
+            color: var(--light);
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 10px;
+        }
+        
+        .card-title::before {
+            content: "";
+            display: block;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(-45deg, var(--primary), var(--secondary));
+            border-radius: 50%;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, rgba(109, 40, 217, 0.2) 0%, rgba(91, 33, 182, 0.2) 100%);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid rgba(109, 40, 217, 0.3);
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+            color: white;
+        }
+        
+        .stat-label {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+        
+        .two-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        
+        @media (max-width: 768px) {
+            .two-columns {
+                grid-template-columns: 1fr;
+            }
+            
+            .wheel-container {
+                width: 300px;
+                height: 300px;
+            }
+        }
+        
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            border: none;
+            margin-bottom: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::after {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 70%);
+            transform: scale(0);
+            transition: transform 0.5s;
+            border-radius: 50%;
+        }
+        
+        .btn:hover::after {
+            transform: scale(1);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(109, 40, 217, 0.3);
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(109, 40, 217, 0.4);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(90deg, var(--secondary) 0%, var(--secondary-dark) 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+        }
+        
+        .btn-accent {
+            background: linear-gradient(90deg, var(--accent) 0%, var(--accent-dark) 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+        }
+        
+        .btn-accent:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .connection-status {
+            text-align: center;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background-color: rgba(31, 41, 55, 0.7);
+        }
+        
+        .status-connecting {
+            border-color: var(--warning);
+            color: var(--warning);
+        }
+        
+        .status-connected {
+            border-color: var(--success);
+            color: var(--success);
+        }
+        
+        .status-error {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+        
+        .list-container {
+            background-color: rgba(31, 41, 55, 0.5);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .list-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.95rem;
+        }
+        
+        .list-item:last-child {
+            border-bottom: none;
+        }
+        
+        .list-item.highlighted {
+            background: linear-gradient(90deg, rgba(109, 40, 217, 0.2) 0%, transparent 100%);
+            border-left: 3px solid var(--primary);
+        }
+        
+        .prize-tier {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .prize-tier:last-child {
+            border-bottom: none;
+        }
+        
+        .prize-name {
+            font-weight: 500;
+        }
+        
+        .prize-chance {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+        
+        .prize-percent {
+            font-weight: 600;
+            color: var(--secondary);
+        }
+        
+        .notification-area {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            max-width: 400px;
+            z-index: 1000;
+        }
+        
+        .notification {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 12px;
+            background-color: rgba(31, 41, 55, 0.9);
+            backdrop-filter: blur(10px);
+            border-left: 4px solid;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease-out forwards;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOut {
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+        
+        .notification-success {
+            border-color: var(--success);
+        }
+        
+        .notification-error {
+            border-color: var(--danger);
+        }
+        
+        .notification-info {
+            border-color: var(--info);
+        }
+        
+        .notification-warning {
+            border-color: var(--warning);
+        }
+        
+        .host-panel {
+            margin-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 1rem;
+        }
+        
+        .host-badge {
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 0.3rem 0.7rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            margin-left: 0.7rem;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .prize-history {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background-color: rgba(31, 41, 55, 0.5);
+        }
+        
+        .prize-history-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .jackpot-prize {
+            color: var(--accent);
+            font-weight: 700;
+        }
+        
+        footer {
+            margin-top: 4rem;
+            text-align: center;
+            color: var(--gray);
+            font-size: 0.9rem;
+            padding: 1rem;
+        }
+        
+        /* Animations */
+        .wheel-spinning {
+            animation: spin 3s ease-out;
+        }
+        
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(var(--spin-value, 1800deg));
+            }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+        
+        /* Loading spinner */
+        .loader {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            display: inline-block;
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1 class="logo">CRYPTO FORTUNE WHEEL</h1>
+            <p class="tagline">Spin the wheel and test your luck on the blockchain!</p>
+        </header>
+        
+        <div class="connection-status status-connecting" id="connection-status">
+            Awaiting connection...
+        </div>
+        
+        <div class="wheel-container">
+            <div class="wheel-pointer"></div>
+            <div class="fortune-wheel" id="wheel">
+                <div class="wheel-center">
+                    <div class="wheel-center-inner">SPIN</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="two-columns">
+            <div>
+                <div class="card">
+                    <h2 class="card-title">Fortune Wheel Stats</h2>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="spin-cost">0.001 ETH</div>
+                            <div class="stat-label">COST PER SPIN</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-value" id="prize-pool">0 ETH</div>
+                            <div class="stat-label">CURRENT POOL</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-value" id="spinner-count">0</div>
+                            <div class="stat-label">TOTAL SPINNERS</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-value" id="current-round">1</div>
+                            <div class="stat-label">ROUND</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 1.5rem;">
+                        <button id="connect-btn" class="btn btn-primary">Connect Wallet</button>
+                        <button id="spin-btn" class="btn btn-accent" style="display: none;">Spin the Wheel</button>
+                        <button id="claim-btn" class="btn btn-secondary" style="display: none;">Claim Rewards</button>
+                    </div>
+                    
+                    <div id="user-rewards" class="prize-history" style="display: none;">
+                        <div class="prize-history-title">Your Pending Rewards</div>
+                        <div id="rewards-amount">0 ETH</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2 class="card-title">Prize Tiers</h2>
+                    
+                    <div id="prize-tiers-list">
+                        <div class="prize-tier">
+                            <div>
+                                <div class="prize-name">Minor Prize</div>
+                                <div class="prize-chance">50% Chance</div>
+                            </div>
+                            <div class="prize-percent">10% of Pool</div>
+                        </div>
+                        
+                        <div class="prize-tier">
+                            <div>
+                                <div class="prize-name">Standard Prize</div>
+                                <div class="prize-chance">30% Chance</div>
+                            </div>
+                            <div class="prize-percent">25% of Pool</div>
+                        </div>
+                        
+                        <div class="prize-tier">
+                            <div>
+                                <div class="prize-name">Major Prize</div>
+                                <div class="prize-chance">15% Chance</div>
+                            </div>
+                            <div class="prize-percent">40% of Pool</div>
+                        </div>
+                        
+                        <div class="prize-tier">
+                            <div>
+                                <div class="prize-name jackpot-prize">JACKPOT</div>
+                                <div class="prize-chance">5% Chance</div>
+                            </div>
+                            <div class="prize-percent jackpot-prize">75% of Pool</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <div class="card">
+                    <h2 class="card-title">Recent Spinners</h2>
+                    
+                    <div id="spinners-list" class="list-container">
+                        <div class="list-item">No spinners yet</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2 class="card-title">Recent Prizes</h2>
+                    
+                    <div id="prizes-list" class="list-container">
+                        <div class="list-item">No prizes won yet</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2 class="card-title">Round Champions</h2>
+                    
+                    <div id="champions-list" class="list-container">
+                        <div class="list-item">No champions yet</div>
+                    </div>
+                </div>
+                
+                <div id="host-panel" class="card host-panel" style="display: none;">
+                    <h2 class="card-title">Game Host Controls <span class="host-badge">Host Only</span></h2>
+                    
+                    <div class="two-columns" style="margin-bottom: 1rem;">
+                        <button id="finalize-round-btn" class="btn btn-primary">Finalize Round</button>
+                        <button id="toggle-wheel-btn" class="btn btn-secondary">Pause Wheel</button>
+                    </div>
+                    
+                    <div class="two-columns">
+                        <div>
+                            <input type="number" id="new-spin-cost" placeholder="New spin cost (wei)" style="width: 100%; padding: 0.7rem; border-radius: 8px; margin-bottom: 0.5rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: white;">
+                            <button id="update-cost-btn" class="btn btn-accent">Update Spin Cost</button>
+                        </div>
+                        
+                        <div>
+                            <input type="number" id="new-fee" placeholder="New fee % (5-20)" style="width: 100%; padding: 0.7rem; border-radius: 8px; margin-bottom: 0.5rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: white;">
+                            <button id="update-fee-btn" class="btn btn-accent">Update House Fee</button>
+                        </div>
+                    </div>
+                    
+                    <button id="collect-fee-btn" class="btn btn-primary" style="margin-top: 1rem;">Collect House Fee</button>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 2023 Crypto Fortune Wheel | COMP4541 Project</p>
+        </footer>
+    </div>
+    
+    <div class="notification-area" id="notification-area">
+        <!-- Notifications will be injected here -->
+    </div>
+    
+    <script>
+        // Contract details - replace with your deployed contract
+        const CONTRACT_ADDRESS = "0x123..."; // Replace with your contract address
+        const CONTRACT_ABI = [
+            // Generated from your FortuneWheel contract
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "_initialSpinCost",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "_houseFeePercent",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "amount",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "HouseFeeCollected",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "round",
+                        "type": "uint256"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "newSpinCost",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "NewRoundStarted",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [],
+                "name": "PrizeStructureUpdated",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "address",
+                        "name": "winner",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "amount",
+                        "type": "uint256"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "string",
+                        "name": "tierName",
+                        "type": "string"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "round",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "PrizeWon",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "round",
+                        "type": "uint256"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "address",
+                        "name": "winner",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "totalPrize",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "RoundFinished",
+                "type": "event"
+            },
+            {
+                "anonymous": false,
+                "inputs": [
+                    {
+                        "indexed": true,
+                        "internalType": "address",
+                        "name": "spinner",
+                        "type": "address"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "amount",
+                        "type": "uint256"
+                    },
+                    {
+                        "indexed": false,
+                        "internalType": "uint256",
+                        "name": "round",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "WheelSpun",
+                "type": "event"
+            },
+            {
+                "inputs": [],
+                "name": "claimRewards",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "currentRound",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "emergencyFeeCollection",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "newSpinCost",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "finalizeRound",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "gameHost",
+                "outputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "getAllSpinners",
+                "outputs": [
+                    {
+                        "internalType": "address[]",
+                        "name": "",
+                        "type": "address[]"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "getCurrentPrizePool",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "count",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "getLastWinners",
+                "outputs": [
+                    {
+                        "internalType": "address[]",
+                        "name": "",
+                        "type": "address[]"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "getSpinnerCount",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "houseFeePercent",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "name": "pendingRewards",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "name": "playerSpins",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "prizeTiers",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "tierChance",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "tierPercent",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "tierName",
+                        "type": "string"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "roundWinners",
+                "outputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "spinCost",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "spinWheel",
+                "outputs": [],
+                "stateMutability": "payable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "spinningActive",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "spinners",
+                "outputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "toggleWheelActive",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "newFeePercent",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "updateHouseFee",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256[]",
+                        "name": "chances",
+                        "type": "uint256[]"
+                    },
+                    {
+                        "internalType": "uint256[]",
+                        "name": "percentages",
+                        "type": "uint256[]"
+                    },
+                    {
+                        "internalType": "string[]",
+                        "name": "names",
+                        "type": "string[]"
+                    }
+                ],
+                "name": "updatePrizeStructure",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "newSpinCost",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "updateSpinCost",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ];
+
+        // App variables
+        let provider, signer, contract;
+        let userAddress = null;
+        let isHost = false;
+        let recentEvents = [];
+        const MAX_EVENTS = 20;
+        
+        // DOM Elements
+        const connectBtn = document.getElementById('connect-btn');
+        const spinBtn = document.getElementById('spin-btn');
+        const claimBtn = document.getElementById('claim-btn');
+        const finalizeRoundBtn = document.getElementById('finalize-round-btn');
+        const toggleWheelBtn = document.getElementById('toggle-wheel-btn');
+        const updateCostBtn = document.getElementById('update-cost-btn');
+        const updateFeeBtn = document.getElementById('update-fee-btn');
+        const collectFeeBtn = document.getElementById('collect-fee-btn');
+        const connectionStatus = document.getElementById('connection-status');
+        const spinnersList = document.getElementById('spinners-list');
+        const prizesList = document.getElementById('prizes-list');
+        const championsList = document.getElementById('champions-list');
+        const prizePool = document.getElementById('prize-pool');
+        const spinCost = document.getElementById('spin-cost');
+        const spinnerCount = document.getElementById('spinner-count');
+        const currentRound = document.getElementById('current-round');
+        const wheel = document.getElementById('wheel');
+        const hostPanel = document.getElementById('host-panel');
+        const userRewards = document.getElementById('user-rewards');
+        const rewardsAmount = document.getElementById('rewards-amount');
+        const notificationArea = document.getElementById('notification-area');
+        
+        // Connect wallet
+        async function connectWallet() {
+            try {
+                if (window.ethereum) {
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                    await provider.send("eth_requestAccounts", []);
+                    
+                    signer = provider.getSigner();
+                    userAddress = await signer.getAddress();
+                    contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+                    
+                    // Update UI
+                    connectionStatus.className = 'connection-status status-connected';
+                    connectionStatus.innerHTML = `Connected: <strong>${formatAddress(userAddress)}</strong>`;
+                    connectBtn.style.display = 'none';
+                    spinBtn.style.display = 'block';
+                    claimBtn.style.display = 'block';
+                    
+                    // Setup event listeners
+                    setupEventListeners();
+                    
+                    // Check if user is the host
+                    const gameHost = await contract.gameHost();
+                    isHost = (userAddress.toLowerCase() === gameHost.toLowerCase());
+                    
+                    if (isHost) {
+                        hostPanel.style.display = 'block';
+                    }
+                    
+                    // Load game data
+                    await refreshGameData();
+                    await checkUserRewards();
+                    
+                    // Listen for account changes
+                    window.ethereum.on('accountsChanged', handleAccountChange);
+                    window.ethereum.on('chainChanged', () => window.location.reload());
+                    
+                    return true;
+                } else {
+                    showNotification('Please install MetaMask to use this dApp', 'error');
+                    return false;
+                }
+            } catch (error) {
+                console.error('Connection error:', error);
+                showNotification(`Failed to connect: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        // Setup contract event listeners
+        function setupEventListeners() {
+            // Clear any existing listeners
+            if (contract.removeAllListeners) {
+                contract.removeAllListeners();
+            }
+            
+            // Wheel spin event
+            contract.on("WheelSpun", (spinner, amount, round) => {
+                refreshGameData();
+                addRecentEvent({
+                    type: 'spin',
+                    address: spinner,
+                    amount: amount,
+                    round: round.toNumber()
+                });
+                
+                if (spinner.toLowerCase() === userAddress.toLowerCase()) {
+                    animateWheel();
+                }
+            });
+            
+            // Prize won event
+            contract.on("PrizeWon", (winner, amount, tierName, round) => {
+                refreshGameData();
+                checkUserRewards();
+                
+                addRecentEvent({
+                    type: 'prize',
+                    address: winner,
+                    amount: amount,
+                    tierName: tierName,
+                    round: round.toNumber()
+                });
+                
+                const amountEth = ethers.utils.formatEther(amount);
+                
+                if (winner.toLowerCase() === userAddress.toLowerCase()) {
+                    showNotification(`You won ${amountEth} ETH in the ${tierName} tier! 🎉`, 'success');
+                }
+            });
+            
+            // New round event
+            contract.on("NewRoundStarted", (round, newSpinCost) => {
+                refreshGameData();
+                
+                addRecentEvent({
+                    type: 'newRound',
+                    round: round.toNumber(),
+                    newSpinCost: newSpinCost
+                });
+                
+                showNotification(`New round started: Round #${round}`, 'info');
+            });
+            
+            // Round finished event
+            contract.on("RoundFinished", (round, champion, totalPrize) => {
+                refreshGameData();
+                
+                addRecentEvent({
+                    type: 'roundFinished',
+                    round: round.toNumber(),
+                    champion: champion,
+                    totalPrize: totalPrize
+                });
+                
+                if (champion.toLowerCase() === userAddress.toLowerCase()) {
+                    showNotification(`Congratulations! You are the champion of Round #${round}! 🏆`, 'success');
+                }
+            });
+        }
+        
+        // Handle account change
+        async function handleAccountChange(accounts) {
+            if (accounts.length === 0) {
+                window.location.reload();
+            } else if (accounts[0] !== userAddress) {
+                userAddress = accounts[0];
+                
+                // Update UI
+                connectionStatus.innerHTML = `Connected: <strong>${formatAddress(userAddress)}</strong>`;
+                
+                // Check if new account is host
+                const gameHost = await contract.gameHost();
+                isHost = (userAddress.toLowerCase() === gameHost.toLowerCase());
+                
+                if (isHost) {
+                    hostPanel.style.display = 'block';
+                } else {
+                    hostPanel.style.display = 'none';
+                }
+                
+                // Refresh data
+                await refreshGameData();
+                await checkUserRewards();
+            }
+        }
+        
+        // Refresh game data
+        async function refreshGameData() {
+            try {
+                // Get current round
+                const round = await contract.currentRound();
+                currentRound.textContent = round.toString();
+                
+                // Get wheel status
+                const active = await contract.spinningActive();
+                spinBtn.disabled = !active;
+                if (!active) {
+                    spinBtn.textContent = "Wheel Paused";
+                } else {
+                    spinBtn.textContent = "Spin the Wheel";
+                }
+                
+                if (isHost) {
+                    toggleWheelBtn.textContent = active ? "Pause Wheel" : "Activate Wheel";
+                }
+                
+                // Get spinner count
+                const count = await contract.getSpinnerCount();
+                spinnerCount.textContent = count.toString();
+                
+                // Get spin cost
+                const cost = await contract.spinCost();
+                spinCost.textContent = `${ethers.utils.formatEther(cost)} ETH`;
+                
+                // Get prize pool
+                const pool = await contract.getCurrentPrizePool();
+                prizePool.textContent = `${ethers.utils.formatEther(pool)} ETH`;
+                
+                // Update spinners list
+                await updateSpinnersList();
+                
+                // Update champions list
+                await updateChampionsList();
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+                showNotification('Error loading game data', 'error');
+            }
+        }
+        
+        // Update spinners list
+        async function updateSpinnersList() {
+            try {
+                const spinners = await contract.getAllSpinners();
+                
+                if (spinners.length === 0) {
+                    spinnersList.innerHTML = '<div class="list-item">No spinners yet</div>';
+                    return;
+                }
+                
+                spinnersList.innerHTML = '';
+                
+                // Limit to last 20 spinners
+                const recentSpinners = spinners.slice(Math.max(0, spinners.length - 20)).reverse();
+                
+                for (const spinner of recentSpinners) {
+                    const spinnerElement = document.createElement('div');
+                    spinnerElement.className = 'list-item';
+                    
+                    if (spinner.toLowerCase() === userAddress?.toLowerCase()) {
+                        spinnerElement.classList.add('highlighted');
+                        spinnerElement.textContent = `${formatAddress(spinner)} (You)`;
+                    } else {
+                        spinnerElement.textContent = formatAddress(spinner);
+                    }
+                    
+                    spinnersList.appendChild(spinnerElement);
+                }
+            } catch (error) {
+                console.error('Error updating spinners list:', error);
+                spinnersList.innerHTML = '<div class="list-item">Error loading spinners</div>';
+            }
+        }
+        
+        // Update champions list
+        async function updateChampionsList() {
+            const round = await contract.currentRound();
+            
+            if (round.eq(1)) {
+                championsList.innerHTML = '<div class="list-item">No champions yet</div>';
+                return;
+            }
+            
+            // Try to get past champions
+            try {
+                // Get up to 10 past champions
+                const pastRounds = Math.min(round.toNumber() - 1, 10);
+                
+                if (pastRounds <= 0) {
+                    championsList.innerHTML = '<div class="list-item">No champions yet</div>';
+                    return;
+                }
+                
+                championsList.innerHTML = '';
+                
+                for (let i = round.toNumber() - 1; i > Math.max(0, round.toNumber() - 11); i--) {
+                    const champion = await contract.roundWinners(i);
+                    
+                    if (champion && champion !== ethers.constants.AddressZero) {
+                        const championElement = document.createElement('div');
+                        championElement.className = 'list-item';
+                        
+                        if (champion.toLowerCase() === userAddress?.toLowerCase()) {
+                            championElement.classList.add('highlighted');
+                            championElement.textContent = `Round #${i}: ${formatAddress(champion)} (You)`;
+                        } else {
+                            championElement.textContent = `Round #${i}: ${formatAddress(champion)}`;
+                        }
+                        
+                        championsList.appendChild(championElement);
+                    }
+                }
+                
+                if (championsList.children.length === 0) {
+                    championsList.innerHTML = '<div class="list-item">No champions yet</div>';
+                }
+            } catch (error) {
+                console.error('Error updating champions list:', error);
+                championsList.innerHTML = '<div class="list-item">Error loading champions</div>';
+            }
+        }
+        
+        // Check user rewards
+        async function checkUserRewards() {
+            try {
+                if (!userAddress) return;
+                
+                const rewards = await contract.pendingRewards(userAddress);
+                
+                if (rewards.gt(0)) {
+                    userRewards.style.display = 'block';
+                    rewardsAmount.textContent = `${ethers.utils.formatEther(rewards)} ETH`;
+                    claimBtn.disabled = false;
+                } else {
+                    userRewards.style.display = 'none';
+                    claimBtn.disabled = true;
+                }
+            } catch (error) {
+                console.error('Error checking rewards:', error);
+            }
+        }
+        
+        // Add recent event to list
+        function addRecentEvent(event) {
+            recentEvents.unshift(event);
+            
+            // Keep only the most recent events
+            if (recentEvents.length > MAX_EVENTS) {
+                recentEvents.length = MAX_EVENTS;
+            }
+            
+            updateEventsLists();
+        }
+        
+        // Update event lists
+        function updateEventsLists() {
+            // Clear prizes list
+            prizesList.innerHTML = '';
+            
+            // Filter prizes
+            const prizeEvents = recentEvents.filter(e => e.type === 'prize');
+            
+            if (prizeEvents.length === 0) {
+                prizesList.innerHTML = '<div class="list-item">No prizes won yet</div>';
+            } else {
+                prizeEvents.forEach(event => {
+                    const prizeElement = document.createElement('div');
+                    prizeElement.className = 'list-item';
+                    
+                    const isUser = event.address.toLowerCase() === userAddress?.toLowerCase();
+                    if (isUser) {
+                        prizeElement.classList.add('highlighted');
+                    }
+                    
+                    const addressText = isUser ? `${formatAddress(event.address)} (You)` : formatAddress(event.address);
+                    const amountEth = ethers.utils.formatEther(event.amount);
+                    
+                    prizeElement.textContent = `${addressText} won ${amountEth} ETH (${event.tierName})`;
+                    prizesList.appendChild(prizeElement);
+                });
+            }
+        }
+        
+        // Format address for display
+        function formatAddress(address) {
+            return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+        }
+        
+        // Spin wheel function
+        async function spinTheWheel() {
+            try {
+                spinBtn.disabled = true;
+                spinBtn.innerHTML = '<span class="loader"></span> Processing...';
+                
+                // Get spin cost
+                const cost = await contract.spinCost();
+                
+                // Send transaction
+                const tx = await contract.spinWheel({ value: cost });
+                showNotification('Spin transaction submitted!', 'info');
+                
+                // Wait for confirmation
+                await tx.wait();
+                
+                // Refresh UI
+                refreshGameData();
+                checkUserRewards();
+            } catch (error) {
+                console.error('Error spinning wheel:', error);
+                showNotification(`Failed to spin: ${error.message}`, 'error');
+            } finally {
+                spinBtn.disabled = false;
+                spinBtn.textContent = 'Spin the Wheel';
+            }
+        }
+        
+        // Claim rewards function
+        async function claimRewards() {
+            try {
+                claimBtn.disabled = true;
+                claimBtn.innerHTML = '<span class="loader"></span> Claiming...';
+                
+                // Send transaction
+                const tx = await contract.claimRewards();
+                showNotification('Claim transaction submitted!', 'info');
+                
+                // Wait for confirmation
+                await tx.wait();
+                
+                showNotification('Rewards claimed successfully!', 'success');
+                
+                // Refresh UI
+                refreshGameData();
+                checkUserRewards();
+            } catch (error) {
+                console.error('Error claiming rewards:', error);
+                showNotification(`Failed to claim: ${error.message}`, 'error');
+            } finally {
+                claimBtn.disabled = false;
+                claimBtn.textContent = 'Claim Rewards';
+            }
+        }
+        
+        // Host functions
+        async function finalizeRound() {
+            try {
+                finalizeRoundBtn.disabled = true;
+                finalizeRoundBtn.innerHTML = '<span class="loader"></span> Processing...';
+                
+                // Get new spin cost 
+                const newCost = document.getElementById('new-spin-cost').value;
+                const newCostWei = newCost ? ethers.utils.parseUnits(newCost, 'wei') : await contract.spinCost();
+                
+                // Send transaction
+                const tx = await contract.finalizeRound(newCostWei);
+                showNotification('Finalizing round...', 'info');
+                
+                // Wait for confirmation
+                await tx.wait();
+                
+                showNotification('Round finalized successfully!', 'success');
+                
+                // Refresh UI
+                refreshGameData();
+            } catch (error) {
+                console.error('Error finalizing round:', error);
+                showNotification(`Failed to finalize: ${error.message}`, 'error');
+            } finally {
+                finalizeRoundBtn.disabled = false;
+                finalizeRoundBtn.textContent = 'Finalize Round';
+            }
+        }
+        
+        async function toggleWheel() {
+            try {
+                toggleWheelBtn.disabled = true;
+                toggleWheelBtn.innerHTML = '<span class="loader"></span> Processing...';
+                
+                // Send transaction
+                const tx = await contract.toggleWheelActive();
+                showNotification('Toggling wheel status...', 'info');
+                
+                // Wait for confirmation
+                await tx.wait();
+                
+                // Refresh UI
+                refreshGameData();
+            } catch (error) {
+                console.error('Error toggling wheel:', error);
+                showNotification(`Failed to toggle: ${error.message}`, 'error');
+            } finally {
+                toggleWheelBtn.disabled = false;
+            }
+        }
+        
+        async function updateCost() {
+            try {
+                const newCost = document.getElementById('new-spin-cost').value;
+                
+                if (!newCost) {
+                    showNotification('Please enter a valid cost', 'warning');
+                    return;
+                }
+                
+                updateCostBtn.disabled = true;
+                updateCostBtn.innerHTML = '<span class="loader"></span> Processing...';
+                
+                // Send transaction
+                const tx = await contract.updateSpinCost(ethers.utils.parseUnits(newCost, 'wei'));
+                showNotification('Updating spin cost...', 'info');
+                
+                // Wait for confirmation
+                await tx.wait();
+                
+                showNotification('Spin cost updated successfully!', 'success');
+                
+                // Refresh UI
+                refreshGameData();
+            } catch (error) {
+                console.error('Error updating cost:', error);
+                showNotification(`Failed to update cost: ${error.message}`, 'error');
+            } finally {
+                updateCostBtn.disabled = false;
+                updateCostBtn.textContent = 'Update Spin Cost';
+            }
+        }
+        
+        async function updateFee() {
+            try {
+                const newFee = document.getElementById('new-fee').value;
+                
+                if (!newFee || newFee < 5 || newFee > 20) {
+                    showNotification('Fee must be between 5% and 20%', 'warning');
+                    return;
+                }
+                
+                updateFeeBtn.disabled = true;
+                updateFeeBtn.innerHTML = '<span class="loader"></span> Processing...';
+                
+                // Send transaction
+                const tx = await contract.updateHouseFee(newFee);
+                showNotification('Updating house fee...', 'info');
+                
+                // Wait for confirmation
+                await tx.wait();
+                
+                showNotification('House fee updated successfully!', 'success');
+            } catch (error) {
+                console.error('Error updating fee:', error);
+                showNotification(`Failed to update fee: ${error.message}`, 'error');
+            } finally {
+                updateFeeBtn.disabled = false;
+                updateFeeBtn.textContent = 'Update House Fee';
+            }
+        }
+        
+        async function collectFee() {
+            try {
+                collectFeeBtn.disabled = true;
+                collectFeeBtn.innerHTML = '<span class="loader"></span> Collecting...';
+                
+                // Send transaction
+                const tx = await contract.emergencyFeeCollection();
+                showNotification('Collecting house fee...', 'info');
+                
+                // Wait for confirmation
+                await tx.wait();
+                
+                showNotification('House fee collected successfully!', 'success');
+                
+                // Refresh UI
+                refreshGameData();
+            } catch (error) {
+                console.error('Error collecting fee:', error);
+                showNotification(`Failed to collect fee: ${error.message}`, 'error');
+            } finally {
+                collectFeeBtn.disabled = false;
+                collectFeeBtn.textContent = 'Collect House Fee';
+            }
+        }
+        
+        // Animate wheel
+        function animateWheel() {
+            wheel.classList.remove('wheel-spinning');
+            // Generate a random rotation between 1800 and 2160 degrees (5-6 full spins)
+            const rotation = 1800 + Math.floor(Math.random() * 360);
+            document.documentElement.style.setProperty('--spin-value', `${rotation}deg`);
+            
+            // Force reflow
+            void wheel.offsetWidth;
+            
+            wheel.classList.add('wheel-spinning');
+        }
+        
+        // Show notification
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            
+            notificationArea.appendChild(notification);
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s forwards';
+                setTimeout(() => {
+                    notification.remove();
+                }, 300);
+            }, 5000);
+        }
+        
+        // Button event listeners
+        connectBtn.addEventListener('click', connectWallet);
+        spinBtn.addEventListener('click', spinTheWheel);
+        claimBtn.addEventListener('click', claimRewards);
+        finalizeRoundBtn.addEventListener('click', finalizeRound);
+        toggleWheelBtn.addEventListener('click', toggleWheel);
+        updateCostBtn.addEventListener('click', updateCost);
+        updateFeeBtn.addEventListener('click', updateFee);
+        collectFeeBtn.addEventListener('click', collectFee);
+        
+        // Check if MetaMask is available on page load
+        window.addEventListener('load', () => {
+            if (!window.ethereum) {
+                connectionStatus.className = 'connection-status status-error';
+                connectionStatus.textContent = 'MetaMask not detected! Please install MetaMask.';
+                connectBtn.disabled = true;
+                showNotification('MetaMask is required to use this dApp', 'error');
+            }
+        });
+    </script>
+</body>
+</html>
