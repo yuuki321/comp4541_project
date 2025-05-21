@@ -12,6 +12,14 @@ Crypto Fortune Wheel is a decentralized application (DApp) that implements a pro
 ├─ Contract_tester_intro.pdf
 └─ .nojekyll
 
+## How to execute the program
+1. cd into your project folder
+``cd .\comp4541``
+2. Launch a HTTP server on port 8000
+``python -m http.server 8000``
+3. Open in your browser
+``http://localhost:8000/index.html``
+
 ## Ethereum Testnet
 This project is deployed on the **Sepolia** testnet. Sepolia is an Ethereum testnet that allows for development and testing without using real ETH.
 
