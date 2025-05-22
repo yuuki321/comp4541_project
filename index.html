@@ -6,7 +6,6 @@
     <title>Crypto Fortune Wheel</title>
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <style>
-        /* Completely different color scheme and design */
         :root {
             --primary: #6d28d9; /* Purple */
             --primary-dark: #5b21b6;
@@ -549,6 +548,7 @@
                     
                     <div style="margin-top: 1.5rem;">
                         <button id="connect-btn" class="btn btn-primary">Connect Wallet</button>
+                        <button id="demo-btn" class="btn btn-secondary">Try Demo</button>
                         <button id="spin-btn" class="btn btn-accent" style="display: none;">Spin the Wheel</button>
                         <button id="claim-btn" class="btn btn-secondary" style="display: none;">Claim Rewards</button>
                     </div>
@@ -561,7 +561,6 @@
                 
                 <div class="card">
                     <h2 class="card-title">Prize Tiers</h2>
-                    
                     <div id="prize-tiers-list">
                         <div class="prize-tier">
                             <div>
@@ -570,7 +569,6 @@
                             </div>
                             <div class="prize-percent">10% of Pool</div>
                         </div>
-                        
                         <div class="prize-tier">
                             <div>
                                 <div class="prize-name">Standard Prize</div>
@@ -578,7 +576,6 @@
                             </div>
                             <div class="prize-percent">25% of Pool</div>
                         </div>
-                        
                         <div class="prize-tier">
                             <div>
                                 <div class="prize-name">Major Prize</div>
@@ -586,7 +583,6 @@
                             </div>
                             <div class="prize-percent">40% of Pool</div>
                         </div>
-                        
                         <div class="prize-tier">
                             <div>
                                 <div class="prize-name jackpot-prize">JACKPOT</div>
@@ -601,48 +597,38 @@
             <div>
                 <div class="card">
                     <h2 class="card-title">Recent Spinners</h2>
-                    
                     <div id="spinners-list" class="list-container">
                         <div class="list-item">No spinners yet</div>
                     </div>
                 </div>
-                
                 <div class="card">
                     <h2 class="card-title">Recent Prizes</h2>
-                    
                     <div id="prizes-list" class="list-container">
                         <div class="list-item">No prizes won yet</div>
                     </div>
                 </div>
-                
                 <div class="card">
                     <h2 class="card-title">Round Champions</h2>
-                    
                     <div id="champions-list" class="list-container">
                         <div class="list-item">No champions yet</div>
                     </div>
                 </div>
-                
                 <div id="host-panel" class="card host-panel" style="display: none;">
                     <h2 class="card-title">Game Host Controls <span class="host-badge">Host Only</span></h2>
-                    
                     <div class="two-columns" style="margin-bottom: 1rem;">
                         <button id="finalize-round-btn" class="btn btn-primary">Finalize Round</button>
                         <button id="toggle-wheel-btn" class="btn btn-secondary">Pause Wheel</button>
                     </div>
-                    
                     <div class="two-columns">
                         <div>
                             <input type="number" id="new-spin-cost" placeholder="New spin cost (wei)" style="width: 100%; padding: 0.7rem; border-radius: 8px; margin-bottom: 0.5rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: white;">
                             <button id="update-cost-btn" class="btn btn-accent">Update Spin Cost</button>
                         </div>
-                        
                         <div>
                             <input type="number" id="new-fee" placeholder="New fee % (5-20)" style="width: 100%; padding: 0.7rem; border-radius: 8px; margin-bottom: 0.5rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: white;">
                             <button id="update-fee-btn" class="btn btn-accent">Update House Fee</button>
                         </div>
                     </div>
-                    
                     <button id="collect-fee-btn" class="btn btn-primary" style="margin-top: 1rem;">Collect House Fee</button>
                 </div>
             </div>
@@ -652,14 +638,33 @@
             <p>© 2025 Crypto Fortune Wheel | COMP4541 Project</p>
         </footer>
     </div>
-    
-    <div class="notification-area" id="notification-area">
-        <!-- Notifications will be injected here -->
-    </div>
-    
+    <div class="notification-area" id="notification-area"></div>
     <script>
-        // Contract details - replace with your deployed contract
-        const CONTRACT_ADDRESS = "0xd9145CCE52D386f254917e481eB44e9943F39138"; // Replace with your contract address
+        // --------------- Demo Mode State ---------------
+        let isDemoMode = false;
+        let demoState = {
+            spinCost: ethers.utils.parseEther('0.001'),
+            prizePool: ethers.utils.parseEther('1'),
+            spinnerCount: 0,
+            currentRound: 1,
+            spinningActive: true,
+            userPendingRewards: ethers.BigNumber.from(0),
+            spinners: [],
+            prizes: [],
+            champions: [],
+            userAddress: '0xDemoUser0000000000000000000000000000000000',
+            roundSpins: [],
+            houseFeePercent: 5,
+            prizeTiers: [
+                { tierChance: 50, tierPercent: 10, tierName: "Minor Prize" },
+                { tierChance: 30, tierPercent: 25, tierName: "Standard Prize" },
+                { tierChance: 15, tierPercent: 40, tierName: "Major Prize" },
+                { tierChance: 5,  tierPercent: 75, tierName: "JACKPOT" }
+            ]
+        };
+
+        // --------- Contract Setup  ----------
+        const CONTRACT_ADDRESS = "0xd9145CCE52D386f254917e481eB44e9943F39138";
         const CONTRACT_ABI = [
             // Generated from your FortuneWheel contract
             {
@@ -1123,9 +1128,10 @@
         let isHost = false;
         let recentEvents = [];
         const MAX_EVENTS = 20;
-        
+
         // DOM Elements
         const connectBtn = document.getElementById('connect-btn');
+        const demoBtn = document.getElementById('demo-btn');
         const spinBtn = document.getElementById('spin-btn');
         const claimBtn = document.getElementById('claim-btn');
         const finalizeRoundBtn = document.getElementById('finalize-round-btn');
@@ -1146,44 +1152,220 @@
         const userRewards = document.getElementById('user-rewards');
         const rewardsAmount = document.getElementById('rewards-amount');
         const notificationArea = document.getElementById('notification-area');
-        
-        // Connect wallet
+
+        // ---------- DEMO MODE LOGIC ----------
+        function enableDemoMode() {
+            isDemoMode = true;
+            userAddress = demoState.userAddress;
+            isHost = false;
+            connectionStatus.className = 'connection-status status-info';
+            connectionStatus.innerHTML = `Demo Mode: <strong>Try without wallet!</strong>`;
+            connectBtn.style.display = 'inline-block';
+            demoBtn.style.display = 'none';
+            spinBtn.style.display = 'block';
+            claimBtn.style.display = 'block';
+            hostPanel.style.display = 'none';
+            refreshDemoUI();
+            showNotification('Demo mode enabled! No wallet needed.', 'info');
+        }
+
+        function refreshDemoUI() {
+            spinCost.textContent = `${ethers.utils.formatEther(demoState.spinCost)} ETH`;
+            prizePool.textContent = `${ethers.utils.formatEther(demoState.prizePool)} ETH`;
+            spinnerCount.textContent = `${demoState.spinnerCount}`;
+            currentRound.textContent = `${demoState.currentRound}`;
+            updateDemoSpinnersList();
+            updateDemoPrizesList();
+            updateDemoChampionsList();
+            checkDemoUserRewards();
+            spinBtn.disabled = !demoState.spinningActive;
+            spinBtn.textContent = demoState.spinningActive ? "Spin the Wheel" : "Wheel Paused";
+        }
+
+        function updateDemoSpinnersList() {
+            if (demoState.spinners.length === 0) {
+                spinnersList.innerHTML = '<div class="list-item">No spinners yet</div>';
+                return;
+            }
+            spinnersList.innerHTML = '';
+            const spinners = demoState.spinners.slice(-20).reverse();
+            for (const s of spinners) {
+                const spinnerElement = document.createElement('div');
+                spinnerElement.className = 'list-item';
+                if (s.address === demoState.userAddress) {
+                    spinnerElement.classList.add('highlighted');
+                    spinnerElement.textContent = `${formatAddress(s.address)} (You)`;
+                } else {
+                    spinnerElement.textContent = formatAddress(s.address);
+                }
+                spinnersList.appendChild(spinnerElement);
+            }
+        }
+
+        function updateDemoPrizesList() {
+            prizesList.innerHTML = '';
+            const prizes = demoState.prizes.slice(-20).reverse();
+            if (prizes.length === 0) {
+                prizesList.innerHTML = '<div class="list-item">No prizes won yet</div>';
+            } else {
+                for (const p of prizes) {
+                    const prizeElement = document.createElement('div');
+                    prizeElement.className = 'list-item';
+                    if (p.address === demoState.userAddress) {
+                        prizeElement.classList.add('highlighted');
+                    }
+                    const addressText = (p.address === demoState.userAddress) ?
+                        `${formatAddress(p.address)} (You)` : formatAddress(p.address);
+                    const amountEth = ethers.utils.formatEther(p.amount);
+                    prizeElement.textContent = `${addressText} won ${amountEth} ETH (${p.tierName})`;
+                    prizesList.appendChild(prizeElement);
+                }
+            }
+        }
+
+        function updateDemoChampionsList() {
+            championsList.innerHTML = '';
+            if (demoState.champions.length === 0) {
+                championsList.innerHTML = '<div class="list-item">No champions yet</div>';
+            } else {
+                for (let i = demoState.champions.length - 1; i >= Math.max(0, demoState.champions.length - 10); i--) {
+                    const champ = demoState.champions[i];
+                    const elem = document.createElement('div');
+                    elem.className = 'list-item';
+                    if (champ.address === demoState.userAddress) {
+                        elem.classList.add('highlighted');
+                        elem.textContent = `Round #${champ.round}: ${formatAddress(champ.address)} (You)`;
+                    } else {
+                        elem.textContent = `Round #${champ.round}: ${formatAddress(champ.address)}`;
+                    }
+                    championsList.appendChild(elem);
+                }
+            }
+        }
+
+        function checkDemoUserRewards() {
+            if (demoState.userPendingRewards.gt(0)) {
+                userRewards.style.display = 'block';
+                rewardsAmount.textContent = `${ethers.utils.formatEther(demoState.userPendingRewards)} ETH`;
+                claimBtn.disabled = false;
+            } else {
+                userRewards.style.display = 'none';
+                claimBtn.disabled = true;
+            }
+        }
+
+        async function demoSpinTheWheel() {
+            if (!demoState.spinningActive) {
+                showNotification('Wheel is paused!', 'warning');
+                return;
+            }
+            spinBtn.disabled = true;
+            spinBtn.innerHTML = '<span class="loader"></span> Processing...';
+
+            // Simulate blockchain delay
+            setTimeout(() => {
+                // Pay spin cost
+                if (demoState.prizePool.lt(demoState.spinCost)) {
+                    showNotification('Not enough pool to spin!', 'error');
+                    spinBtn.disabled = false;
+                    spinBtn.textContent = 'Spin the Wheel';
+                    return;
+                }
+                demoState.prizePool = demoState.prizePool.add(demoState.spinCost);
+                demoState.spinnerCount++;
+                // Add spinner
+                demoState.spinners.push({ address: demoState.userAddress });
+                // Spin logic
+                let r = Math.floor(Math.random() * 100) + 1;
+                let cum = 0, prizeTier = null;
+                for (let i = 0; i < demoState.prizeTiers.length; i++) {
+                    cum += demoState.prizeTiers[i].tierChance;
+                    if (r <= cum) {
+                        prizeTier = demoState.prizeTiers[i];
+                        break;
+                    }
+                }
+                // Calculate prize
+                let pool = demoState.prizePool.sub(demoState.userPendingRewards); // exclude pending
+                let prize = pool.mul(prizeTier.tierPercent).div(100);
+                let maxPay = pool.mul(100 - demoState.houseFeePercent).div(100);
+                if (prize.gt(maxPay)) prize = maxPay;
+                // Award
+                demoState.userPendingRewards = demoState.userPendingRewards.add(prize);
+                demoState.prizes.push({
+                    address: demoState.userAddress,
+                    amount: prize,
+                    tierName: prizeTier.tierName,
+                    round: demoState.currentRound
+                });
+                showNotification(`You won ${ethers.utils.formatEther(prize)} ETH in the ${prizeTier.tierName} tier! 🎉`, 'success');
+                animateWheel();
+                refreshDemoUI();
+                spinBtn.disabled = false;
+                spinBtn.textContent = 'Spin the Wheel';
+            }, 1200);
+        }
+
+        async function demoClaimRewards() {
+            claimBtn.disabled = true;
+            claimBtn.innerHTML = '<span class="loader"></span> Claiming...';
+            setTimeout(() => {
+                showNotification(`Demo rewards claimed!`, 'success');
+                demoState.prizePool = demoState.prizePool.sub(demoState.userPendingRewards);
+                demoState.userPendingRewards = ethers.BigNumber.from(0);
+                refreshDemoUI();
+                claimBtn.disabled = false;
+                claimBtn.textContent = 'Claim Rewards';
+            }, 1000);
+        }
+
+        // Demo "Finalize Round": picks user as champion if they spun, gives bonus, starts new round
+        function demoFinalizeRound() {
+            // Only if user spun
+            if (demoState.spinners.length === 0) {
+                showNotification('No spins this round!', 'info');
+                return;
+            }
+            // Champion: user (demo)
+            let bonus = demoState.prizePool.mul(5).div(100);
+            demoState.userPendingRewards = demoState.userPendingRewards.add(bonus);
+            demoState.champions.push({ address: demoState.userAddress, round: demoState.currentRound });
+            showNotification(`You are champion of round #${demoState.currentRound}! +${ethers.utils.formatEther(bonus)} ETH`, 'success');
+            // Collect house fee
+            let fee = demoState.prizePool.mul(demoState.houseFeePercent).div(100);
+            demoState.prizePool = demoState.prizePool.sub(fee);
+            // New round
+            demoState.currentRound++;
+            demoState.spinners = [];
+            refreshDemoUI();
+        }
+
+        // ----------- REAL CONTRACT LOGIC ------------
         async function connectWallet() {
             try {
                 if (window.ethereum) {
                     provider = new ethers.providers.Web3Provider(window.ethereum);
                     await provider.send("eth_requestAccounts", []);
-                    
                     signer = provider.getSigner();
                     userAddress = await signer.getAddress();
                     contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-                    
                     // Update UI
                     connectionStatus.className = 'connection-status status-connected';
                     connectionStatus.innerHTML = `Connected: <strong>${formatAddress(userAddress)}</strong>`;
                     connectBtn.style.display = 'none';
+                    demoBtn.style.display = 'none';
                     spinBtn.style.display = 'block';
                     claimBtn.style.display = 'block';
-                    
-                    // Setup event listeners
                     setupEventListeners();
-                    
-                    // Check if user is the host
                     const gameHost = await contract.gameHost();
                     isHost = (userAddress.toLowerCase() === gameHost.toLowerCase());
-                    
-                    if (isHost) {
-                        hostPanel.style.display = 'block';
-                    }
-                    
-                    // Load game data
+                    if (isHost) hostPanel.style.display = 'block';
+                    else hostPanel.style.display = 'none';
                     await refreshGameData();
                     await checkUserRewards();
-                    
-                    // Listen for account changes
                     window.ethereum.on('accountsChanged', handleAccountChange);
                     window.ethereum.on('chainChanged', () => window.location.reload());
-                    
+                    isDemoMode = false;
                     return true;
                 } else {
                     showNotification('Please install MetaMask to use this dApp', 'error');
@@ -1707,26 +1889,77 @@
                 }, 300);
             }, 5000);
         }
-        
-        // Button event listeners
+
+        // ------------- Button Event Listeners --------------
         connectBtn.addEventListener('click', connectWallet);
-        spinBtn.addEventListener('click', spinTheWheel);
-        claimBtn.addEventListener('click', claimRewards);
-        finalizeRoundBtn.addEventListener('click', finalizeRound);
-        toggleWheelBtn.addEventListener('click', toggleWheel);
-        updateCostBtn.addEventListener('click', updateCost);
-        updateFeeBtn.addEventListener('click', updateFee);
-        collectFeeBtn.addEventListener('click', collectFee);
-        
-        // Check if MetaMask is available on page load
+        demoBtn.addEventListener('click', enableDemoMode);
+        spinBtn.addEventListener('click', () => {
+            if (isDemoMode) demoSpinTheWheel();
+            else spinTheWheel();
+        });
+        claimBtn.addEventListener('click', () => {
+            if (isDemoMode) demoClaimRewards();
+            else claimRewards();
+        });
+        finalizeRoundBtn.addEventListener('click', () => {
+            if (isDemoMode) demoFinalizeRound();
+            else finalizeRound();
+        });
+        toggleWheelBtn.addEventListener('click', () => {
+            if (!isDemoMode) toggleWheel();
+        });
+        updateCostBtn.addEventListener('click', () => {
+            if (!isDemoMode) updateCost();
+        });
+        updateFeeBtn.addEventListener('click', () => {
+            if (!isDemoMode) updateFee();
+        });
+        collectFeeBtn.addEventListener('click', () => {
+            if (!isDemoMode) collectFee();
+        });
+
+        // ----------- UI Utility Functions --------------
+        function formatAddress(address) {
+            return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+        }
+        function animateWheel() {
+            wheel.classList.remove('wheel-spinning');
+            const rotation = 1800 + Math.floor(Math.random() * 360);
+            document.documentElement.style.setProperty('--spin-value', `${rotation}deg`);
+            void wheel.offsetWidth;
+            wheel.classList.add('wheel-spinning');
+        }
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            notificationArea.appendChild(notification);
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s forwards';
+                setTimeout(() => {
+                    notification.remove();
+                }, 300);
+            }, 5000);
+        }
+
+        // ----------- On Load: Demo Button State ----------
         window.addEventListener('load', () => {
             if (!window.ethereum) {
-                connectionStatus.className = 'connection-status status-error';
-                connectionStatus.textContent = 'MetaMask not detected! Please install MetaMask.';
-                connectBtn.disabled = true;
-                showNotification('MetaMask is required to use this dApp', 'error');
+                connectionStatus.className = 'connection-status status-info';
+                connectionStatus.textContent = 'MetaMask not detected! Try Demo Mode!';
+                connectBtn.disabled = false;
+                demoBtn.disabled = false;
             }
+            // If user doesn't connect, show demo option
+            connectBtn.style.display = 'inline-block';
+            demoBtn.style.display = 'inline-block';
+            spinBtn.style.display = 'none';
+            claimBtn.style.display = 'none';
         });
+
+        // ----------- If user navigates away from demo mode, reload to reset
+        // (Ensures clean switch between demo and real)
+        // You may want a "Leave Demo Mode" button for advanced UX
     </script>
 </body>
 </html>
