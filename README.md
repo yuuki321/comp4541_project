@@ -115,4 +115,3 @@ If you want to deploy your own contract:
 
 ## License
 This project is licensed under the MIT License.
-```
