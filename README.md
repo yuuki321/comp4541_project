@@ -116,7 +116,3 @@ If you want to deploy your own contract:
 ## License
 This project is licensed under the MIT License.
 ```
-
-### Changes Made:
-1. **Directory Format**: Updated to show proper code formatting for the directory structure.
-2. **Project Report Link**: Added a sentence at the beginning above the overview section to include the project report link.
